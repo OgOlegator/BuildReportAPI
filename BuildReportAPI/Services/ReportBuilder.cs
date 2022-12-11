@@ -4,7 +4,7 @@ namespace BuildReportAPI.Services
 {
     public class ReportBuilder : IReportBuilder
     {
-        public byte[] Build(CancellationToken token)
+        public byte[] Build()
         {
             var random = new Random();
             var timeBuild = random.Next(5, 45);
@@ -18,9 +18,6 @@ namespace BuildReportAPI.Services
 
                 if (i == 3 && random.Next(0, 99) < 20)
                     throw new Exception("Report failed");
-
-                if (token.IsCancellationRequested)
-                    throw new OperationCanceledException();
             }
 
             return report;

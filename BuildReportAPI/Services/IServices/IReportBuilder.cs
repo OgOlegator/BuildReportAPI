@@ -3,7 +3,7 @@
     public interface IReportBuilder
     {
 
-        public byte[] Build(CancellationToken token);
+        public byte[] Build();
 
     }
 }

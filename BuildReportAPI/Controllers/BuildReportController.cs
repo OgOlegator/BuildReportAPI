@@ -1,4 +1,5 @@
-﻿using BuildReportAPI.Services.IServices;
+﻿using BuildReportAPI.Services;
+using BuildReportAPI.Services.IServices;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BuildReportAPI.Controllers
@@ -26,25 +27,26 @@ namespace BuildReportAPI.Controllers
             var id = _reportCounter.GetNextId();
 
             var cts = new CancellationTokenSource();
-
-            Task.Run(() =>
-            {
-                try
-                {
-                    var report = _reportBuilder.Build(cts.Token);
-                    _reporter.ReportSuccess(report, id);
-                }
-                catch (OperationCanceledException)
-                {
-                    _reporter.ReportTimeout(id);
-                }
-                catch 
-                {
-                    _reporter.ReportError(id);
-                }
-            }, cts.Token);
+            var token = cts.Token;
 
             _controlCache.AddControl(id, cts);
+
+            var buildTask = Task.Run(() =>
+            {
+                var report = _reportBuilder.Build();
+
+                return report;
+            }, token);
+
+            buildTask.ContinueWith(antecedent =>
+            {
+                if(antecedent.IsCanceled)
+                    _reporter.ReportTimeout(id);
+                else if(antecedent.IsFaulted)
+                    _reporter.ReportError(id);
+                else if(antecedent.IsCompleted)
+                    _reporter.ReportSuccess(antecedent.Result, id);
+            }, token);
 
             return id;
         }

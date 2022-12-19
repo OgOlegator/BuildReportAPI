@@ -35,18 +35,20 @@ namespace BuildReportAPI.Controllers
             {
                 var report = _reportBuilder.Build();
 
+                if(token.IsCancellationRequested)
+                    token.ThrowIfCancellationRequested();
+
                 return report;
             }, token);
 
-            buildTask.ContinueWith(antecedent =>
-            {
-                if(antecedent.IsCanceled)
-                    _reporter.ReportTimeout(id);
-                else if(antecedent.IsFaulted)
-                    _reporter.ReportError(id);
-                else if(antecedent.IsCompleted)
-                    _reporter.ReportSuccess(antecedent.Result, id);
-            }, token);
+            buildTask.ContinueWith(antecedent => { _reporter.ReportSuccess(antecedent.Result, id); }, 
+            TaskContinuationOptions.OnlyOnRanToCompletion);
+
+            buildTask.ContinueWith(antecedent => { _reporter.ReportError(id); },
+            TaskContinuationOptions.OnlyOnFaulted);
+
+            buildTask.ContinueWith(antecedent => { _reporter.ReportTimeout(id); },
+            TaskContinuationOptions.OnlyOnCanceled);
 
             return id;
         }
